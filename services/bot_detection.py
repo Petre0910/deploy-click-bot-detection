@@ -18,7 +18,7 @@ def is_bot(ip, user_agent, headers, email_id, db):
         return True, "User-Agent matches known bots"
 
     # 2. Check essential headers
-    expected_headers = ["accept", "accept-language", "user-agent", "accept-encoding", "connection"]
+    expected_headers = ["accept", "accept-language", "user-agent", "accept-encoding"]
     headers_lower = {k.lower(): v for k, v in headers.items()}
     missing_headers = [h for h in expected_headers if h not in headers_lower]
     if missing_headers:
