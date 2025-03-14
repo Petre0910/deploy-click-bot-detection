@@ -50,7 +50,7 @@
             }
 
             // Open WebSocket connection to the backend
-            socket = new WebSocket(`ws://deploy-click-bot-detection.onrender.com/ws/${email_id}`);
+            socket = new WebSocket(`wss://deploy-click-bot-detection.onrender.com/ws/${email_id}`);
 
             socket.onmessage = function (event) {
                 const data = JSON.parse(event.data);
