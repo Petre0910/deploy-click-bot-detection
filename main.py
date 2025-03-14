@@ -27,7 +27,7 @@ def create_tracking_link(data: LinkData, db: Session = Depends(get_db)):
     link_id = generate_unique_id()
     tracking_link = save_link(link_id, data.url, data.utm, data.email_id)
 
-    return {"tracking_url": f"http://127.0.0.1:8000/{tracking_link.link_id}"}
+    return {"tracking_url": f"https://deploy-click-bot-detection.onrender.com/{tracking_link.link_id}"}
 
 @app.get("/email-ids")
 async def get_email_ids(db: Session = Depends(get_db)):
