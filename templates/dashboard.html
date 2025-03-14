@@ -24,7 +24,7 @@
 
         // Fetch all email_ids when the page loads
         async function loadEmailIds() {
-            const response = await fetch('http://127.0.0.1:8000/email-ids');
+            const response = await fetch('https://deploy-click-bot-detection.onrender.com/email-ids');
             const data = await response.json();
             const emailDropdown = document.getElementById('emailDropdown');
             data.email_ids.forEach(email_id => {
@@ -50,7 +50,7 @@
             }
 
             // Open WebSocket connection to the backend
-            socket = new WebSocket(`ws://127.0.0.1:8000/ws/${email_id}`);
+            socket = new WebSocket(`ws://deploy-click-bot-detection.onrender.com/ws/${email_id}`);
 
             socket.onmessage = function (event) {
                 const data = JSON.parse(event.data);

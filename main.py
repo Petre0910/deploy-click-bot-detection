@@ -52,7 +52,7 @@ async def track_click(link_id: str, request: Request, db: Session = Depends(get_
     user_ip = request.client.host
     user_agent = request.headers.get("User-Agent")
 
-
+    print(request.headers)
     email_id = get_email_id_by_link_id(link_id, db)
     is_fraud, fraud_reason = is_bot(user_ip, user_agent, request.headers, email_id, db)    
 
