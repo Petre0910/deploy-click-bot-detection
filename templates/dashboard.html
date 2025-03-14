@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Click Tracking Dashboard</title>
+</head>
+<body>
+    <h1>Click Tracking Dashboard</h1>
+
+    <!-- Dropdown for email_ids -->
+    <label for="emailDropdown">Select Email ID:</label>
+    <select id="emailDropdown" onchange="connectWebSocket()">
+        <option value="">Select an Email</option>
+    </select>
+
+    <!-- Display click stats for each link -->
+    <div id="clickData">
+        <!-- Click stats will be displayed here -->
+    </div>
+
+    <script>
+        let socket;
+
+        // Fetch all email_ids when the page loads
+        async function loadEmailIds() {
+            const response = await fetch('http://127.0.0.1:8000/email-ids');
+            const data = await response.json();
+            const emailDropdown = document.getElementById('emailDropdown');
+            data.email_ids.forEach(email_id => {
+                const option = document.createElement('option');
+                option.value = email_id;
+                option.textContent = email_id;
+                emailDropdown.appendChild(option);
+            });
+        }
+
+        // Connect to WebSocket for real-time updates
+        function connectWebSocket() {
+            const email_id = document.getElementById('emailDropdown').value;
+            if (!email_id) {
+                if (socket) socket.close();  // Close the previous WebSocket connection
+                document.getElementById('clickData').innerHTML = '';  // Clear data
+                return;
+            }
+
+            // If WebSocket is already connected, close it before reconnecting
+            if (socket) {
+                socket.close();
+            }
+
+            // Open WebSocket connection to the backend
+            socket = new WebSocket(`ws://127.0.0.1:8000/ws/${email_id}`);
+
+            socket.onmessage = function (event) {
+                const data = JSON.parse(event.data);
+                const stats = data.stats;
+                displayClickData(stats);
+            };
+
+            socket.onclose = function () {
+                console.log("WebSocket connection closed.");
+            };
+
+            socket.onerror = function (error) {
+                console.log("WebSocket error:", error);
+            };
+        }
+
+        // Display click stats on the page
+        function displayClickData(stats) {
+            const clickDataDiv = document.getElementById('clickData');
+            if (stats.length === 0) {
+                clickDataDiv.innerHTML = 'No data available for this email.';
+            } else {
+                let html = '<table border="1"><tr><th>Link ID</th><th>Total Clicks</th><th>Bot Clicks</th><th>Human Clicks</th><th>Bot Percentage</th><th>Human Percentage</th></tr>';
+                stats.forEach(stat => {
+                    html += `
+                        <tr>
+                            <td>${stat.link_id}</td>
+                            <td>${stat.total_clicks}</td>
+                            <td>${stat.bot_clicks}</td>
+                            <td>${stat.human_clicks}</td>
+                            <td>${stat.bot_percentage.toFixed(2)}%</td>
+                            <td>${stat.human_percentage.toFixed(2)}%</td>
+                        </tr>
+                    `;
+                });
+                html += '</table>';
+                clickDataDiv.innerHTML = html;
+            }
+        }
+
+        // Load email IDs when the page is loaded
+        window.onload = loadEmailIds;
+    </script>
+</body>
+</html>

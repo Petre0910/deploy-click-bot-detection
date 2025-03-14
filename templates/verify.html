@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Click Verification</title>
+    <script>
+        let userInteracted = false;
+
+        function setUserInteraction() {
+            userInteracted = true;
+        }
+
+        document.addEventListener("mousemove", setUserInteraction);
+        document.addEventListener("keydown", setUserInteraction);
+
+        function isHeadless() {
+            return (navigator.webdriver || !window.chrome || navigator.userAgent.includes("Headless"));
+        }
+
+        function hasLowEntropyFingerprint() {
+            let lang = navigator.languages ? navigator.languages.join(",") : navigator.language;
+            let gpu = navigator.hardwareConcurrency;
+            return (lang === "" || gpu < 2);
+        }
+
+        function getFingerprint() {
+            return btoa(navigator.userAgent + navigator.platform + navigator.hardwareConcurrency);
+        }
+
+        async function submitVerification() {
+            if (isHeadless() || hasLowEntropyFingerprint()) {
+                window.location.href = "/bot-detected";  // Redirect if bot detected on frontend
+                return;
+            }
+            
+        }
+
+        window.onload = () => {
+            setTimeout(submitVerification, 2000); // Delay to prevent bot bypass
+        };
+    </script>
+</head>
+<body>
+    <p>Verifying your request...</p>
+</body>
+</html>
