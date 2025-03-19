@@ -81,9 +81,9 @@ def get_email_id_by_link_id(link_id: str, db):
 
 from sqlalchemy import func
 
-def get_link_click_stats(email_id, db):
+def get_link_click_stats(email_id, db, start_date: datetime = None, end_date: datetime = None):
     """Fetch click stats (all clicks, bot clicks, human clicks, and percentages) for all links in an email."""
-    stats = db.query(
+    query = db.query(
         TrackingLink.link_id,
         func.count(ClickLog.id).label('total_clicks'),
         func.coalesce(func.sum(cast(ClickLog.is_bot, Integer)), 0).label('bot_clicks'),
@@ -94,9 +94,16 @@ def get_link_click_stats(email_id, db):
         ClickLog, ClickLog.link_id == TrackingLink.link_id
     ).filter(
         TrackingLink.email_id == email_id
-    ).group_by(
-        TrackingLink.link_id
-    ).all()
+    )
+
+    # Apply the date range filter if provided
+    if start_date:
+        query = query.filter(ClickLog.click_at >= start_date)
+    if end_date:
+        query = query.filter(ClickLog.click_at <= end_date)
+
+    stats = query.group_by(TrackingLink.link_id).all()
+
 
 
     # Calculate percentages
@@ -123,3 +130,16 @@ def get_link_click_stats(email_id, db):
 def get_all_email_ids(db):
     """Fetch all distinct email_ids from the TrackingLink table."""
     return db.query(TrackingLink.email_id).distinct().all()
+
+def get_clicks_by_link_id(link_id, db, start_date: datetime = None, end_date: datetime = None):
+    """Exports click stats for a specific link."""
+
+    clicks = db.query(ClickLog).filter(ClickLog.link_id == link_id)
+
+    # Apply date range filter if provided
+    if start_date:
+        clicks = clicks.filter(ClickLog.click_at >= start_date)
+    if end_date:
+        clicks = clicks.filter(ClickLog.click_at <= end_date)
+
+    return clicks

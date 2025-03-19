@@ -14,6 +14,14 @@
         <option value="">Select an Email</option>
     </select>
 
+    <!-- Date filter for clicks -->
+    <label for="startDate">Start Date:</label>
+    <input type="date" id="startDate" onchange="applyDateFilter()">
+
+    <label for="endDate">End Date:</label>
+    <input type="date" id="endDate" onchange="applyDateFilter()">
+
+
     <!-- Display click stats for each link -->
     <div id="clickData">
         <!-- Click stats will be displayed here -->
@@ -24,7 +32,7 @@
 
         // Fetch all email_ids when the page loads
         async function loadEmailIds() {
-            const response = await fetch('https://deploy-click-bot-detection.onrender.com/email-ids');
+            const response = await fetch('http://127.0.0.1:8000/email-ids');
             const data = await response.json();
             const emailDropdown = document.getElementById('emailDropdown');
             data.email_ids.forEach(email_id => {
@@ -35,37 +43,7 @@
             });
         }
 
-        // Connect to WebSocket for real-time updates
-        function connectWebSocket() {
-            const email_id = document.getElementById('emailDropdown').value;
-            if (!email_id) {
-                if (socket) socket.close();  // Close the previous WebSocket connection
-                document.getElementById('clickData').innerHTML = '';  // Clear data
-                return;
-            }
-
-            // If WebSocket is already connected, close it before reconnecting
-            if (socket) {
-                socket.close();
-            }
-
-            // Open WebSocket connection to the backend
-            socket = new WebSocket(`wss://deploy-click-bot-detection.onrender.com/ws/${email_id}`);
-
-            socket.onmessage = function (event) {
-                const data = JSON.parse(event.data);
-                const stats = data.stats;
-                displayClickData(stats);
-            };
-
-            socket.onclose = function () {
-                console.log("WebSocket connection closed.");
-            };
-
-            socket.onerror = function (error) {
-                console.log("WebSocket error:", error);
-            };
-        }
+       
 
         // Display click stats on the page
         function displayClickData(stats) {
@@ -83,6 +61,7 @@
                             <td>${stat.human_clicks}</td>
                             <td>${stat.bot_percentage.toFixed(2)}%</td>
                             <td>${stat.human_percentage.toFixed(2)}%</td>
+                            <td><button onclick="exportLinkCSV('${stat.link_id}')">Export</button></td>
                         </tr>
                     `;
                 });
@@ -93,6 +72,61 @@
 
         // Load email IDs when the page is loaded
         window.onload = loadEmailIds;
+
+        function applyDateFilter() {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            connectWebSocket(startDate, endDate);
+        }
+
+        function connectWebSocket(startDate = '', endDate = '') {
+            const email_id = document.getElementById('emailDropdown').value;
+            if (!email_id) {
+                if (socket) socket.close();  // Close the previous WebSocket connection
+                document.getElementById('clickData').innerHTML = '';  // Clear data
+                return;
+            }
+
+            if (socket) {
+                socket.close();
+            }
+
+            let url = `ws://127.0.0.1:8000/ws/${email_id}`;
+            if (startDate && endDate) {
+                url += `?start_date=${startDate}&end_date=${endDate}`;
+            }
+
+            socket = new WebSocket(url);
+
+            socket.onmessage = function (event) {
+                const data = JSON.parse(event.data);
+                const stats = data.stats;
+                displayClickData(stats);
+            };
+
+            socket.onclose = function () {
+                console.log("WebSocket connection closed.");
+            };
+
+            socket.onerror = function (error) {
+                console.log("WebSocket error:", error);
+            };
+        }
+
+        function exportLinkCSV(link_id) {
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            let url = `http://127.0.0.1:8000/export-link-csv/${link_id}`;
+            if (startDate && endDate) {
+                url += `?start_date=${startDate}&end_date=${endDate}`;
+            }
+
+            window.location.href = url;  // Trigger the download
+        }
+
+
     </script>
 </body>
 </html>

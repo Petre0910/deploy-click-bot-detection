@@ -1,13 +1,18 @@
 # Main FastAPI app
 from fastapi import FastAPI, Request, Depends, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from services.database import get_db, save_click, save_link, get_link_by_id, get_email_id_by_link_id, get_link_click_stats, get_all_email_ids
+from services.database import get_db, save_click, save_link, get_link_by_id, get_email_id_by_link_id, get_link_click_stats, get_all_email_ids, get_clicks_by_link_id
 from services.bot_detection import is_bot
 from starlette.responses import RedirectResponse
 from pydantic import BaseModel
 from starlette.templating import Jinja2Templates
 import uuid
 import asyncio
+import csv
+from io import StringIO
+from datetime import datetime
+
 
 app = FastAPI()
 
@@ -27,7 +32,7 @@ def create_tracking_link(data: LinkData, db: Session = Depends(get_db)):
     link_id = generate_unique_id()
     tracking_link = save_link(link_id, data.url, data.utm, data.email_id)
 
-    return {"tracking_url": f"https://deploy-click-bot-detection.onrender.com/{tracking_link.link_id}"}
+    return {"tracking_url": f"http://127.0.0.1:8000/{tracking_link.link_id}"}
 
 @app.get("/email-ids")
 async def get_email_ids(db: Session = Depends(get_db)):
@@ -53,6 +58,8 @@ async def track_click(link_id: str, request: Request, db: Session = Depends(get_
     user_agent = request.headers.get("User-Agent")
 
     print(request.headers)
+
+
     email_id = get_email_id_by_link_id(link_id, db)
     is_fraud, fraud_reason = is_bot(user_ip, user_agent, request.headers, email_id, db)    
 
@@ -65,13 +72,38 @@ async def track_click(link_id: str, request: Request, db: Session = Depends(get_
 
 
 @app.websocket("/ws/{email_id}")
-async def websocket_endpoint(websocket: WebSocket, email_id: str, db: Session = Depends(get_db)):
+async def websocket_endpoint(websocket: WebSocket, email_id: str, start_date: datetime = None, end_date: datetime = None, db: Session = Depends(get_db)):
     await websocket.accept()
     try:
         while True:
             # Fetch stats periodically or whenever a new click happens
-            stats = get_link_click_stats(email_id, db)
+            stats = get_link_click_stats(email_id, db, start_date, end_date)
             await websocket.send_json({"stats": stats})
             await asyncio.sleep(5)  # Update every 5 seconds, adjust as needed
     except WebSocketDisconnect:
         print(f"Client disconnected: {email_id}")
+
+
+@app.get("/export-link-csv/{link_id}")
+async def export_link_to_csv(link_id: str, start_date: datetime = None, end_date: datetime = None, db: Session = Depends(get_db)):
+    """Exports click stats for a specific link as CSV."""
+    clicks_data = get_clicks_by_link_id(link_id, db, start_date, end_date)
+    output = StringIO()
+    writer = csv.writer(output)
+
+    # Write header
+    writer.writerow(['ID', 'IP Address', 'User Agent', 'Is Bot', 'Click Time', 'Fraud Reason'])
+
+    # Write click data
+    for click in clicks_data:
+        writer.writerow([
+            click.id,
+            click.ip_address,
+            click.user_agent,
+            click.is_bot,
+            click.click_at,
+            click.fraud_reason
+        ])
+
+    output.seek(0)
+    return StreamingResponse(output, media_type="text/csv", headers={"Content-Disposition": f"attachment; filename={link_id}_clicks.csv"})
